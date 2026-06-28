@@ -90,7 +90,9 @@ Assert-Contains $asm "L100:" "assembly labels"
 Assert-Contains $asm "INT 21H" "assembly exit"
 
 Set-Content -Path build\bad.dat -Value "A:=1" -NoNewline
+$ErrorActionPreference = "Continue"
 build\mini_compiler.exe build\bad.dat 2>$null | Out-Null
+$ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -eq 0) {
     Write-Host "FAILED: syntax error handling" -ForegroundColor Red
     exit 1

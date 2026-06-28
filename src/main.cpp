@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -24,6 +27,11 @@ std::string defaultWithExtension(const std::string &source, const std::string &e
 } // namespace
 
 int main(int argc, char **argv) {
+#ifdef _WIN32
+    // 将控制台输入输出代码页设置为 UTF-8，避免中文乱码
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
     if (argc < 2) {
         printUsage();
         return 1;
