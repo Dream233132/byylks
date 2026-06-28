@@ -1,0 +1,79 @@
+; 8086/8088-style assembly generated from quadruples
+.MODEL SMALL
+.STACK 100H
+.DATA
+A DW 0
+B DW 0
+M DW 0
+N DW 0
+T1 DW 0
+K DW 0
+H DW 0
+X DW 0
+T2 DW 0
+Y DW 0
+T3 DW 0
+T4 DW 0
+T5 DW 0
+.CODE
+START:
+    MOV AX, @DATA
+    MOV DS, AX
+L100:
+    MOV AX, A
+    CMP AX, B
+    JG L102
+L101:
+    JMP LEND
+L102:
+    MOV AX, M
+    CMP AX, N
+    JGE L104
+L103:
+    JMP L107
+L104:
+    MOV AX, A
+    ADD AX, 1
+    MOV T1, AX
+L105:
+    MOV AX, T1
+    MOV A, AX
+L106:
+    JMP L112
+L107:
+    MOV AX, K
+    CMP AX, H
+    JE L109
+L108:
+    JMP L112
+L109:
+    MOV AX, X
+    ADD AX, 2
+    MOV T2, AX
+L110:
+    MOV AX, T2
+    MOV X, AX
+L111:
+    JMP L107
+L112:
+    MOV AX, M
+    ADD AX, Y
+    MOV T3, AX
+L113:
+    MOV AX, X
+    MOV BX, T3
+    IMUL BX
+    MOV T4, AX
+L114:
+    MOV AX, N
+    ADD AX, T4
+    MOV T5, AX
+L115:
+    MOV AX, T5
+    MOV M, AX
+L116:
+    JMP L100
+LEND:
+    MOV AH, 4CH
+    INT 21H
+END START
