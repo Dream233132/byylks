@@ -10,6 +10,7 @@
 #include "Compiler.h"
 
 #include <filesystem>  // filesystem::path，用于自动推导输出文件路径
+#include <fstream>     // ofstream，用于写入文法信息文件
 #include <iostream>    // cout、cerr，用于控制台输出
 #include <string>      // string
 #ifdef _WIN32
@@ -24,7 +25,10 @@ namespace {
 // printUsage：打印命令行用法说明。
 // 当参数缺失或用户请求帮助时调用。
 void printUsage() {
-    cout << "用法: mini_compiler <source> [-m output.med] [-a output.asm] [-t output.tok] [--no-asm]\n";
+    cout << "用法: mini_compiler <source> [-m output.med] [-a output.asm]\n"
+         << "                            [-t output.tok] [--no-asm]\n"
+         << "                            [--grammar output.txt]\n"
+         << "  --grammar  输出文法的 FIRST/FOLLOW 集和 LL(1) 预测分析表\n";
 }
 
 // defaultWithExtension：根据源文件路径自动生成默认输出路径。
@@ -52,10 +56,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    string source;    // 源程序文件路径（必须提供）
-    string medium;    // 四元式输出路径（默认与源文件同目录，扩展名改为 .med）
-    string assembly;  // 汇编输出路径（默认与源文件同目录，扩展名改为 .asm）
-    string tokens;    // 词法二元式输出路径（可选，不指定则不输出）
+    string source;      // 源程序文件路径（必须提供）
+    string medium;      // 四元式输出路径（默认与源文件同目录，扩展名改为 .med）
+    string assembly;    // 汇编输出路径（默认与源文件同目录，扩展名改为 .asm）
+    string tokens;      // 词法二元式输出路径（可选，不指定则不输出）
+    string grammarOut;  // 文法信息输出路径（可选，不指定则不输出）
     bool noAsm = false; // --no-asm 标志：只做必做的四元式生成，跳过汇编生成
 
     // 手写参数解析：
@@ -89,6 +94,13 @@ int main(int argc, char **argv) {
             tokens = argv[i];
         } else if (arg == "--no-asm") {
             noAsm = true;
+        } else if (arg == "--grammar") {
+            // --grammar 后跟输出文件路径；若省略路径则直接打印到控制台
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                grammarOut = argv[++i];
+            } else {
+                grammarOut = "__stdout__"; // 特殊标记：输出到控制台
+            }
         } else if (source.empty()) {
             source = arg;  // 第一个非选项参数作为源文件路径
         } else {
@@ -128,6 +140,27 @@ int main(int argc, char **argv) {
         }
         if (!tokens.empty()) {
             cout << "词法结果生成成功: " << tokens << "\n";
+        }
+
+        // 可选：输出文法的 FIRST/FOLLOW 集和 LL(1) 预测分析表
+        if (!grammarOut.empty()) {
+            // 构造 GrammarInfo 对象（构造时自动完成计算）
+            mini::GrammarInfo gi;
+            const string content = gi.formatAll();
+            if (grammarOut == "__stdout__") {
+                // 直接打印到控制台
+                cout << "\n" << content;
+            } else {
+                // 写入文件
+                ofstream fout(grammarOut, ios::binary);
+                if (!fout) {
+                    cerr << "无法写入文法信息文件: " << grammarOut << "\n";
+                    return 1;
+                }
+                fout << content;
+                fout.close();
+                cout << "文法信息已写入: " << grammarOut << "\n";
+            }
         }
     } catch (const exception &ex) {
         // 编译失败：输出错误信息并以非 0 状态码退出

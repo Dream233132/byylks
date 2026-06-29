@@ -8,6 +8,7 @@
 
 #include "AsmGenerator.h"  // 汇编代码生成器
 #include "Common.h"        // 公共数据类型（Token、Quad、CompileResult 等）
+#include "GrammarInfo.h"   // FIRST/FOLLOW 集和 LL(1) 预测分析表
 #include "Lexer.h"         // 词法分析器
 #include "Parser.h"        // 语法分析器（兼语义翻译）
 

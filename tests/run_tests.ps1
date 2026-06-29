@@ -4,7 +4,7 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $root
 
 New-Item -ItemType Directory -Force -Path build | Out-Null
-g++ -std=c++17 -Iinclude src\Lexer.cpp src\Parser.cpp src\AsmGenerator.cpp src\Compiler.cpp src\main.cpp -o build\mini_compiler.exe
+g++ -std=c++17 -Iinclude src\Lexer.cpp src\Parser.cpp src\AsmGenerator.cpp src\GrammarInfo.cpp src\Compiler.cpp src\main.cpp -o build\mini_compiler.exe
 
 function Assert-Equal {
     param(
