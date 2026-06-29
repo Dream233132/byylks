@@ -1,24 +1,37 @@
+// ============================================================
+// main.cpp —— 小型编译程序命令行入口
+// 负责解析命令行参数，调用编译器核心，输出各阶段结果。
+//
+// 用法：
+//   mini_compiler <source> [-m output.med] [-a output.asm]
+//                          [-t output.tok] [--no-asm]
+// ============================================================
+
 #include "Compiler.h"
 
-#include <filesystem>
-#include <iostream>
-#include <string>
+#include <filesystem>  // filesystem::path，用于自动推导输出文件路径
+#include <iostream>    // cout、cerr，用于控制台输出
+#include <string>      // string
 #ifdef _WIN32
-#include <windows.h>
+#include <windows.h>   // SetConsoleOutputCP / SetConsoleCP，用于 UTF-8 控制台支持
 #endif
 
-namespace fs = std::filesystem;
+// 在实现文件中使用 using namespace std，简化代码
+using namespace std;
+namespace fs = filesystem;
 
 namespace {
 
-// 打印命令行用法。程序支持默认输出，也支持用户指定 .med/.asm/.tok 路径。
+// printUsage：打印命令行用法说明。
+// 当参数缺失或用户请求帮助时调用。
 void printUsage() {
-    std::cout << "用法: mini_compiler <source> [-m output.med] [-a output.asm] [-t output.tok] [--no-asm]\n";
+    cout << "用法: mini_compiler <source> [-m output.med] [-a output.asm] [-t output.tok] [--no-asm]\n";
 }
 
-// 未显式指定输出文件时，沿用源文件路径，只替换扩展名。
-// 例如 examples/pas.dat -> examples/pas.med。
-std::string defaultWithExtension(const std::string &source, const std::string &extension) {
+// defaultWithExtension：根据源文件路径自动生成默认输出路径。
+// 只替换扩展名，保留目录和文件名主干。
+// 例如：examples/pas.dat -> examples/pas.med
+string defaultWithExtension(const string &source, const string &extension) {
     fs::path path(source);
     path.replace_extension(extension);
     return path.string();
@@ -28,64 +41,70 @@ std::string defaultWithExtension(const std::string &source, const std::string &e
 
 int main(int argc, char **argv) {
 #ifdef _WIN32
-    // 将控制台输入输出代码页设置为 UTF-8，避免中文乱码
+    // 将控制台输入输出代码页设置为 UTF-8，避免源码中中文字符串显示乱码。
+    // Windows 默认代码页为 GBK（936），而源文件保存为 UTF-8，因此需要在启动时切换。
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
+
+    // 参数不足时打印用法并退出
     if (argc < 2) {
         printUsage();
         return 1;
     }
 
-    std::string source;
-    std::string medium;
-    std::string assembly;
-    std::string tokens;
-    bool noAsm = false;
+    string source;    // 源程序文件路径（必须提供）
+    string medium;    // 四元式输出路径（默认与源文件同目录，扩展名改为 .med）
+    string assembly;  // 汇编输出路径（默认与源文件同目录，扩展名改为 .asm）
+    string tokens;    // 词法二元式输出路径（可选，不指定则不输出）
+    bool noAsm = false; // --no-asm 标志：只做必做的四元式生成，跳过汇编生成
 
-    // 简单手写参数解析：
-    // 第一个非选项参数作为源程序路径；-m/-a/-t 后必须跟输出路径；
-    // --no-asm 表示只完成必做的四元式生成。
+    // 手写参数解析：
+    //   第一个非选项参数作为源文件路径；
+    //   -m/-a/-t 后必须紧跟输出路径；
+    //   --no-asm 禁用汇编生成；
+    //   -h/--help 打印用法。
     for (int i = 1; i < argc; ++i) {
-        const std::string arg = argv[i];
+        const string arg = argv[i];
         if (arg == "-h" || arg == "--help") {
             printUsage();
             return 0;
         }
         if (arg == "-m" || arg == "--medium") {
             if (++i >= argc) {
-                std::cerr << "-m/--medium 缺少输出路径\n";
+                cerr << "-m/--medium 缺少输出路径\n";
                 return 1;
             }
             medium = argv[i];
         } else if (arg == "-a" || arg == "--asm") {
             if (++i >= argc) {
-                std::cerr << "-a/--asm 缺少输出路径\n";
+                cerr << "-a/--asm 缺少输出路径\n";
                 return 1;
             }
             assembly = argv[i];
         } else if (arg == "-t" || arg == "--tokens") {
             if (++i >= argc) {
-                std::cerr << "-t/--tokens 缺少输出路径\n";
+                cerr << "-t/--tokens 缺少输出路径\n";
                 return 1;
             }
             tokens = argv[i];
         } else if (arg == "--no-asm") {
             noAsm = true;
         } else if (source.empty()) {
-            source = arg;
+            source = arg;  // 第一个非选项参数作为源文件路径
         } else {
-            std::cerr << "未知参数: " << arg << "\n";
+            cerr << "未知参数: " << arg << "\n";
             return 1;
         }
     }
 
+    // 源文件路径不能为空
     if (source.empty()) {
         printUsage();
         return 1;
     }
 
-    // 根据用户输入补齐默认输出路径。
+    // 未显式指定输出路径时，自动根据源文件路径推导默认值
     if (medium.empty()) {
         medium = defaultWithExtension(source, ".med");
     }
@@ -94,18 +113,26 @@ int main(int argc, char **argv) {
     }
 
     try {
-        // compileFile 内部会完成词法分析、语法分析、四元式生成和可选汇编输出。
-        const mini::CompileResult result = mini::compileFile(source, medium, noAsm ? "" : assembly, tokens);
-        std::cout << "四元式生成成功: " << medium << "\n";
-        std::cout << "四元式条数: " << result.quads.size() << "\n";
+        // 调用编译器核心：词法分析 -> 语法分析 -> 四元式生成 -> 汇编生成（可选）
+        const mini::CompileResult result = mini::compileFile(
+            source,
+            medium,
+            noAsm ? "" : assembly,  // --no-asm 时传空字符串，跳过汇编写文件
+            tokens
+        );
+
+        // 输出成功信息
+        cout << "四元式生成成功: " << medium << "\n";
+        cout << "四元式条数: " << result.quads.size() << "\n";
         if (!noAsm) {
-            std::cout << "汇编生成成功: " << assembly << "\n";
+            cout << "汇编生成成功: " << assembly << "\n";
         }
         if (!tokens.empty()) {
-            std::cout << "词法结果生成成功: " << tokens << "\n";
+            cout << "词法结果生成成功: " << tokens << "\n";
         }
-    } catch (const std::exception &ex) {
-        std::cerr << "编译失败: " << ex.what() << "\n";
+    } catch (const exception &ex) {
+        // 编译失败：输出错误信息并以非 0 状态码退出
+        cerr << "编译失败: " << ex.what() << "\n";
         return 1;
     }
 
